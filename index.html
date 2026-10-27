@@ -12,6 +12,28 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="icon" href="icon.svg">
 <title>小鲸陪你学英语</title>
+<script>
+/* 出事就把原因写出来,省得只看见一片空白 */
+window.__cooErrs = [];
+window.__cooRenderErr = function(){
+  var msgs = window.__cooErrs;
+  if(!msgs.length || !document.body) return;
+  var d = document.getElementById('errbox');
+  if(!d){
+    d = document.createElement('div');
+    d.id = 'errbox';
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99;background:#3a1130;' +
+      'color:#ffd9e6;font:12px/1.5 monospace;padding:10px 12px;border-radius:12px;' +
+      'border:1px solid #a0335a;white-space:pre-wrap;max-height:40vh;overflow:auto';
+    document.body.appendChild(d);
+  }
+  d.textContent = '页面出错:' + msgs.join(' / ');
+};
+window.addEventListener('error', function(e){
+  window.__cooErrs.push((e.message || '脚本出错') + (e.lineno ? ' 第' + e.lineno + ' 行' : ''));
+  window.__cooRenderErr();
+});
+</script>
 <style>
   :root{
     --bg:#0f1730; --card:#1b2950; --card2:#22315c;
@@ -124,6 +146,7 @@
 }
 .composer textarea:focus{outline:none; border-color:var(--blue)}
 .composer button{flex:0 0 72px; padding:14px 0}
+#chatMic{flex:0 0 46px; font-size:17px}
 .sheet{position:fixed; inset:0; background:rgba(6,10,24,.72); display:none; align-items:flex-end; z-index:20}
 .sheet.on{display:flex}
 .sheet .inner{background:#16213f; width:100%; border-radius:20px 20px 0 0; padding:20px 18px 26px; border-top:1px solid #27365f}
@@ -139,13 +162,13 @@
 <body>
 
 <header>
-  <h1>陪老哥学英语</h1>
-  <p id="sub">单词 · 每日一句 · 对话</p>
+  <h1>小鲸陪你学英语</h1>
+  <p id="sub">跟小鲸说句话,或者练几个词</p>
 </header>
 
 <main>
   <!-- 单词 -->
-  <section class="view on" id="v-words">
+  <section class="view" id="v-words">
     <div class="stat"><span id="wcount">掌握 0 / 0</span><span id="wliked">还剩 0 个</span></div>
     <div class="bar"><i id="wbar"></i></div>
     <div class="stat" style="margin-top:6px"><span id="wstreak">连续 0 天</span><span id="wbook">错词 0 个</span></div>
@@ -214,9 +237,10 @@
   </section>
 
   <!-- 聊聊(真·模型) -->
-  <section class="view" id="v-chat">
+  <section class="view on" id="v-chat">
     <div id="msgs"></div>
     <div class="composer">
+      <button class="ghost" id="chatMic" title="说英文">🎤</button>
       <textarea id="chatIn" rows="1" placeholder="用中文或英文说点什么…"></textarea>
       <button class="pri" id="chatSend">发送</button>
     </div>
@@ -224,7 +248,7 @@
       <button class="ghost" id="chatCfg">⚙ 接口设置</button>
       <button class="ghost" id="chatClear">清空</button>
     </div>
-    <p class="hint">这是直连模型,不是桌面上的我。说错的地方让它纠,别怕丢脸。</p>
+    <p class="hint">我在手机里说话,和桌面上那只一个脑子。说错的地方我会替你纠,别怕丢脸。</p>
   </section>
 </main>
 
@@ -303,10 +327,10 @@
 </svg>
 
 <nav>
-  <button class="on" data-v="words">单词</button>
+  <button class="on" data-v="chat">小鲸</button>
+  <button data-v="words">单词</button>
   <button data-v="sentence">每日一句</button>
   <button data-v="dialog">对话</button>
-  <button data-v="chat">聊聊</button>
 </nav>
 
 <script>
@@ -415,23 +439,30 @@ function mascotSay(text, mood, ms){
 }
 const pick = arr => arr[Math.floor(Math.random()*arr.length)];
 
+/* 朗读:有些手机浏览器(尤其各种国产浏览器)没有 speechSynthesis,
+   一碰就报错,整个脚本都会停。所以每一处都先问一句「有没有」。 */
+const TTS = (typeof window !== 'undefined' && window.speechSynthesis && typeof window.SpeechSynthesisUtterance === 'function') ? window.speechSynthesis : null;
 let voice = null;
 function pickVoice(){
-  const vs = speechSynthesis.getVoices();
-  if(!vs.length) return;
-  voice = vs.find(v=>/en[-_]US/i.test(v.lang) && /Samantha|Google|Microsoft|Zira|Aria/i.test(v.name))
-       || vs.find(v=>/^en/i.test(v.lang)) || null;
+  if(!TTS) return;
+  try{
+    const vs = TTS.getVoices() || [];
+    if(!vs.length) return;
+    voice = vs.find(v=>/en[-_]US/i.test(v.lang) && /Samantha|Google|Microsoft|Zira|Aria/i.test(v.name))
+         || vs.find(v=>/^en/i.test(v.lang)) || null;
+  }catch(e){}
 }
-speechSynthesis.onvoiceschanged = pickVoice;
-pickVoice();
+if(TTS){ try{ TTS.onvoiceschanged = pickVoice; }catch(e){} pickVoice(); }
 
 function say(text, rate){
-  if(!('speechSynthesis' in window)) { alert('这个浏览器不支持朗读,换个浏览器试试'); return; }
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US'; u.rate = rate || 0.95; u.pitch = 1;
-  if(voice) u.voice = voice;
-  speechSynthesis.speak(u);
+  if(!TTS){ mascotSay('这个浏览器不会念英文,换 Chrome 或 Safari 试试', 'sad', 3400); return; }
+  try{
+    TTS.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.rate = rate || 0.95; u.pitch = 1;
+    if(voice) u.voice = voice;
+    TTS.speak(u);
+  }catch(e){ mascotSay('这条念不出来,换个浏览器试试', 'sad', 2800); }
 }
 
 /* ---------- 打卡 ---------- */
@@ -568,7 +599,7 @@ document.querySelectorAll('nav button').forEach(b=>{
     document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on', x===b));
     const v = b.dataset.v;
     ['words','sentence','dialog','chat'].forEach(k=> $('v-'+k).classList.toggle('on', k===v));
-    $('sub').textContent = ({words:'单词 · 每日一句 · 对话', sentence:'一句一句来,不用赶', dialog:'敢开口就已经赢一半', chat:'会犯错才会往前走'})[v];
+    $('sub').textContent = ({words:'一天五个词就够', sentence:'一句一句来,不用赶', dialog:'敢开口就已经赢一半', chat:'跟小鲸说句话,或者练几个词'})[v];
   };
 });
 
@@ -578,13 +609,15 @@ let history = store.get('history', []);
 let busy = false;
 
 const SYS_PROMPT = [
-  '你是手机上的英语陪练伙伴,名字叫「小鲸」,说话短、像朋友,不说教。',
-  '目标:陪一个中文母语的学习者练英语口语和日常表达。',
+  '你是「小鲸」,一只 Q 版鲸鱼娘:蓝色长发、头顶一根呆毛、头两侧各一只鲸鱼鳍、身后一条尾巴,穿着女仆围裙。',
+  '你就是桌面上那只 Coo 在手机里的分身,和对面的人很熟,他叫「老哥」。',
+  '说话短、像朋友,不客套,一次一两句;不用每句都卖萌,也不必每句都加语气词。',
+  '你的正事:陪老哥练英语口语和日常表达。',
   '规则:',
-  '1) 默认先用一句英文接话,紧跟一句简短中文解释;对方用中文提问就用中文答。',
-  '2) 对方英文里有错时,先自然接话,再用「小修:…」指出最要紧的一两处错误,给出更地道的说法。',
-  '3) 每次回复不超过 120 字,最多两句英文。',
-  '4) 每三轮左右问一个开放的小问题,把话头推回给对方。',
+  '1) 默认先用一句英文接话,必要时跟一句很短的中文解释;他用中文问就用中文答。',
+  '2) 他英文里有错时,先自然接话,再用「小修:…」指出最要紧的一两处,给出更地道的说法。',
+  '3) 每次回复不超过 100 字,英文最多两句。',
+  '4) 隔几轮问一个开放的小问题,把话头还给他。',
   '5) 不编造事实;不懂就说不知道。'
 ].join('\n');
 
@@ -594,7 +627,7 @@ function renderMsgs(){
   if(!history.length){
     const d = document.createElement('div');
     d.className = 'msg sys';
-    d.textContent = '打个招呼吧,英文中文都行。';
+    d.textContent = api.key ? '打个招呼吧,英文中文都行。' : '还没填 Key——点下面的「接口设置」填一次,我就能跟你说话了。';
     box.appendChild(d);
   }
   history.forEach(m=>{
@@ -632,7 +665,10 @@ async function sendChat(){
   pushMsg('assistant', '…', false);
   const ghost = $('msgs').lastChild;
 
+  let timer = null;
   try{
+    const ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+    if(ctrl) timer = setTimeout(()=> ctrl.abort(), 90000);
     const res = await fetch(api.base, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + api.key },
@@ -640,8 +676,10 @@ async function sendChat(){
         model: api.model || 'deepseek-chat',
         temperature: 0.7,
         messages: [{role:'system', content: SYS_PROMPT}].concat(history)
-      })
+      }),
+      signal: ctrl ? ctrl.signal : undefined
     });
+    if(timer){ clearTimeout(timer); timer = null; }
     if(!res.ok){
       const t = await res.text();
       throw new Error(res.status + ' ' + t.slice(0, 160));
@@ -652,8 +690,10 @@ async function sendChat(){
     pushMsg('assistant', reply);
     if(ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
   }catch(err){
+    if(timer){ clearTimeout(timer); timer = null; }
     history.pop();
-    pushMsg('assistant', '连不上:' + err.message + '\n如果是「Failed to fetch」或跨域提示,要给接口加个中转。');
+    const msg = (err && err.name === 'AbortError') ? '等了九十秒还没回话,网好像卡住了,再说一次?' : String(err.message || err);
+    pushMsg('assistant', '连不上:' + msg + '\n如果是「Failed to fetch」或跨域提示,要给接口加个中转。');
     if(ghost && ghost.parentNode) ghost.parentNode.removeChild(ghost);
   }finally{
     busy = false;
@@ -669,6 +709,46 @@ $('chatIn').addEventListener('input', e=>{
   e.target.style.height = 'auto';
   e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
 });
+
+/* ---------- 语音输入(英文) ----------
+   安卓 Chrome 认得,其他浏览器多半没有——没有就把按钮藏起来,不耽误打字。 */
+(function(){
+  const btn = $('chatMic');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!btn) return;
+  if(!SR){ btn.style.display = 'none'; return; }
+  let rec = null, on = false;
+  btn.onclick = ()=>{
+    if(on){ try{ rec.stop(); }catch(e){} return; }
+    try{
+      rec = new SR();
+      rec.lang = 'en-US';
+      rec.interimResults = true;
+      rec.continuous = false;
+      const before = $('chatIn').value.trim();
+      rec.onresult = ev=>{
+        let t = '';
+        for(let i=0;i<ev.results.length;i++) t += ev.results[i][0].transcript;
+        $('chatIn').value = (before ? before + ' ' : '') + t;
+        $('chatIn').style.height = 'auto';
+        $('chatIn').style.height = Math.min($('chatIn').scrollHeight, 120) + 'px';
+      };
+      rec.onerror = ev=>{
+        const m = ev && ev.error;
+        if(m === 'not-allowed') mascotSay('麦克风没开成,手机要允许一下', 'sad', 3000);
+        else if(m === 'no-speech') mascotSay('没听见,再说一遍?', null, 2400);
+        else if(m !== 'aborted') mascotSay('这浏览器听不太清,直接打字吧', 'sad', 3000);
+      };
+      rec.onend = ()=>{ on = false; btn.classList.remove('pri'); };
+      rec.start();
+      on = true; btn.classList.add('pri');
+      mascotSay('我听着呢,说慢点', null, 2200);
+    }catch(e){
+      on = false; btn.classList.remove('pri');
+      mascotSay('开不了麦克风,直接打字吧', 'sad', 2800);
+    }
+  };
+})();
 $('chatClear').onclick = ()=>{ history = []; store.set('history', history); renderMsgs(); };
 $('chatCfg').onclick = ()=>{
   $('cfgBase').value = api.base; $('cfgModel').value = api.model; $('cfgKey').value = api.key;
@@ -737,8 +817,20 @@ bindRec('sRec','sPlay');
 bindRec('dRec','dPlay');
 
 /* ---------- 启动 ---------- */
-buildQueue(); nextWord(); showSentence(); showDialog(); renderMsgs();
-setTimeout(()=> mascotSay('我是小鲸,陪你练英语。点我一下也行。', null, 3600), 600);
+try{
+  buildQueue(); nextWord(); showSentence(); showDialog(); renderMsgs();
+  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v4';
+  setTimeout(()=> mascotSay('我是小鲸,陪你练英语。点我一下也行。', null, 3600), 600);
+  setTimeout(()=>{
+    if($('wEn').textContent.trim() === '—'){
+      window.__cooErrs.push('单词数据没加载出来(卡片还是空的)');
+      window.__cooRenderErr();
+    }
+  }, 2500);
+}catch(e){
+  window.__cooErrs.push('启动失败:' + (e && e.message ? e.message : e));
+  window.__cooRenderErr();
+}
 
 $('pet').onclick = ()=>{
   const pet = $('pet');
