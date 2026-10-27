@@ -1,0 +1,14 @@
+{
+  "name": "小鲸陪你学英语",
+  "short_name": "小鲸英语",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1730",
+  "theme_color": "#0f1730",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
