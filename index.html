@@ -175,7 +175,8 @@ window.addEventListener('error', function(e){
 <main>
   <!-- 单词 -->
   <section class="view" id="v-words">
-    <div class="row" style="margin:0 0 8px"><select id="wBank" class="sel"></select></div>
+    <div class="row" style="margin:0 0 6px"><select id="wBank" class="sel"></select></div>
+    <div class="row" style="margin:0 0 8px"><select id="wVoice" class="sel"></select></div>
     <div class="stat"><span id="wcount">掌握 0 / 0</span><span id="wliked">还剩 0 个</span></div>
     <div class="bar"><i id="wbar"></i></div>
     <div class="stat" style="margin-top:6px"><span id="wstreak">连续 0 天</span><span id="wbook">错词 0 个</span></div>
@@ -268,6 +269,16 @@ window.addEventListener('error', function(e){
     <input id="cfgModel" placeholder="deepseek-chat">
     <label>API Key</label>
     <input id="cfgKey" type="password" placeholder="sk-...">
+    <label>口音</label>
+    <select id="cfgAccent" class="sel">
+      <option value="2">美音</option>
+      <option value="1">英音</option>
+    </select>
+    <label>音源</label>
+    <select id="cfgSrc" class="sel">
+      <option value="youdao">有道(稳,不用梯子)</option>
+      <option value="google">谷歌(更自然,可能要梯子)</option>
+    </select>
     <p class="warn">Key 只存在这台手机的浏览器里,别把手机借给别人乱点。直连若报「跨域」错,就得再加一个中转服务。</p>
     <div class="row">
       <button class="ghost" id="cfgCancel">取消</button>
@@ -414,27 +425,64 @@ function pickVoice(){
 }
 if(TTS){ try{ TTS.onvoiceschanged = pickVoice; }catch(e){} pickVoice(); }
 
+/* ---------- 音色 ----------
+   浏览器自带朗读接口时用它的 pitch 变调(最像人);没有(X 浏览器)就放录音,
+   靠 playbackRate 连速度带音高一起变:快一点=萝莉,慢一点=御姐。 */
+const VOICES = [
+  { id:'jing',  name:'小鲸 · 原声', pitch:1.0,  rate:1.0 },
+  { id:'loli',  name:'萝莉',        pitch:1.75, rate:1.22 },
+  { id:'sweet', name:'甜妹',        pitch:1.35, rate:1.1 },
+  { id:'yujie', name:'御姐',        pitch:0.6,  rate:0.9 },
+  { id:'man',   name:'低沉男声',    pitch:0.25, rate:0.84 }
+];
+function curVoice(){
+  const id = store.get('voice', 'jing');
+  return VOICES.find(v => v.id === id) || VOICES[0];
+}
+
 function say(text, rate){
+  const v = curVoice();
+  const base = (rate > 0 ? rate : 1);
   if(TTS){
     try{
       TTS.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US'; u.rate = rate || 0.95; u.pitch = 1;
+      u.lang = 'en-US';
+      u.rate = Math.max(0.5, Math.min(1.8, base * (v.id === 'jing' ? 1 : v.rate * 0.95)));
+      u.pitch = v.pitch;
       if(voice) u.voice = voice;
       TTS.speak(u);
       return;
     }catch(e){}
   }
-  sayAudio(text);
+  sayAudio(text, undefined, base);
 }
 
-/* 没有朗读接口的浏览器(X 浏览器等)直接放录音:有道词典的发音接口,国内外都能用。
-   type=2 美音,type=1 英音。 */
+/* 没有朗读接口的浏览器(X 浏览器等)直接放录音。
+   有道:type=2 美音,type=1 英音;谷歌:tl=en / en-GB,腔调更自然但国内可能要梯子。
+   base 是基础语速(慢速 0.62 等);不是原声时再乘音色的倍率,连音高一起变。 */
 let audioEl = null;
-function sayAudio(text, t){
+function sayAudio(text, t, base){
   const type = (t === undefined ? (store.get('vtype', 2)) : t);
-  const url = 'https://dict.youdao.com/dictvoice?type=' + type + '&audio=' + encodeURIComponent(text);
+  const src = store.get('vsrc', 'youdao');
+  const url = (src === 'google')
+    ? 'https://translate.google.com/translate_tts?ie=UTF-8&tl=' + (Number(type) === 1 ? 'en-GB' : 'en') +
+      '&client=tw-ob&q=' + encodeURIComponent(text.slice(0, 200))
+    : 'https://dict.youdao.com/dictvoice?type=' + type + '&audio=' + encodeURIComponent(text);
   if(!audioEl){ audioEl = new Audio(); audioEl.preload = 'auto'; }
+  const v = curVoice();
+  const b = (base > 0 ? base : 1);
+  try{
+    const shift = (v.id !== 'jing');           // 原声不变调;别的音色靠倍率连音高一起变
+    audioEl.preservesPitch = !shift;
+    audioEl.webkitPreservesPitch = !shift;
+    audioEl.mozPreservesPitch = !shift;
+    audioEl.playbackRate = Math.max(0.5, Math.min(2, shift ? b * v.rate : b));
+  }catch(e){}
+  audioEl.onerror = null;
+  if(src === 'google'){
+    audioEl.onerror = () => { store.set('vsrc', 'youdao'); sayAudio(text, t, b); };  // 谷歌不通就退回有道
+  }
   audioEl.src = url;
   const p = audioEl.play();
   if(p && p.catch) p.catch(()=> mascotSay('网没连上,这句念不出来', 'sad', 2600));
@@ -630,6 +678,8 @@ async function sendChat(){
   if(!api.key){
     $('cfgSheet').classList.add('on');
     $('cfgBase').value = api.base; $('cfgModel').value = api.model; $('cfgKey').value = '';
+    $('cfgAccent').value = String(store.get('vtype', 2));
+    $('cfgSrc').value = store.get('vsrc', 'youdao');
     return;
   }
   $('chatIn').value = '';
@@ -727,10 +777,14 @@ $('chatIn').addEventListener('input', e=>{
 $('chatClear').onclick = ()=>{ history = []; store.set('history', history); renderMsgs(); };
 $('chatCfg').onclick = ()=>{
   $('cfgBase').value = api.base; $('cfgModel').value = api.model; $('cfgKey').value = api.key;
+  $('cfgAccent').value = String(store.get('vtype', 2));
+  $('cfgSrc').value = store.get('vsrc', 'youdao');
   $('cfgSheet').classList.add('on');
 };
 $('cfgCancel').onclick = ()=> $('cfgSheet').classList.remove('on');
 $('cfgSave').onclick = ()=>{
+  store.set('vtype', Number($('cfgAccent').value) || 2);
+  store.set('vsrc', $('cfgSrc').value || 'youdao');
   api = {
     base: $('cfgBase').value.trim() || 'https://api.deepseek.com/chat/completions',
     model: $('cfgModel').value.trim() || 'deepseek-chat',
@@ -813,10 +867,28 @@ bindRec('dRec','dPlay');
   };
 })();
 
+/* ---------- 音色选择 ---------- */
+(function(){
+  const sel = $('wVoice');
+  if(!sel) return;
+  VOICES.forEach(v=>{
+    const o = document.createElement('option');
+    o.value = v.id; o.textContent = '音色:' + v.name;
+    sel.appendChild(o);
+  });
+  sel.value = curVoice().id;
+  sel.onchange = ()=>{
+    store.set('voice', sel.value);
+    const v = curVoice();
+    say('Hi, this is the whale talking to you.');
+    mascotSay('换到「' + v.name + '」了', null, 2000);
+  };
+})();
+
 /* ---------- 启动 ---------- */
 try{
   buildQueue(); nextWord(); showSentence(); showDialog(); renderMsgs();
-  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v5';
+  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v6';
   setTimeout(()=> mascotSay('我是小鲸,陪你练英语。点我一下也行。', null, 3600), 600);
   setTimeout(()=>{
     if($('wEn').textContent.trim() === '—'){

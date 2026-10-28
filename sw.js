@@ -1,6 +1,6 @@
 /* 离线缓存:第一次打开后,断网也能用
    v2:单个文件缓存失败不影响整体安装;页面走网络优先,改完能马上看到 */
-const CACHE = 'eng-v4';
+const CACHE = 'eng-v5';
 const FILES = ['./', './index.html', './manifest.json', './icon.svg', './icon-192.png', './icon-512.png', './pet.png', './words-ce6.js'];
 
 self.addEventListener('install', e => {
