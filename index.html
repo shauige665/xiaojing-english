@@ -94,9 +94,13 @@ window.addEventListener('error', function(e){
   .hint{font-size:12px; color:var(--dim); text-align:center; margin-top:10px; line-height:1.6}
 
   /* 小鲸 */
-  #pet{position:fixed; right:8px; bottom:62px; width:86px; z-index:12; cursor:pointer;
-       filter:drop-shadow(0 8px 18px rgba(0,0,0,.45)); transition:opacity .3s}
-  #pet .body{animation:float 3.8s ease-in-out infinite}
+  #pet{position:fixed; right:10px; bottom:74px; width:96px; height:96px; z-index:12; cursor:pointer;
+       border-radius:50%; overflow:hidden; background:#0d1730; transition:opacity .3s;
+       box-shadow:0 8px 18px rgba(0,0,0,.45), 0 0 0 2px rgba(120,190,255,.5);
+       animation:float 3.8s ease-in-out infinite}
+  #pet img{width:100%; height:100%; object-fit:cover; object-position:50% 6%; display:block}
+  #pet.happy{animation:hop .5s ease 2}
+  #pet.sad{animation:none; filter:grayscale(.45)}
   @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
   #pet .tail{transform-origin:34px 110px; animation:wag 2.6s ease-in-out infinite}
   @keyframes wag{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(9deg)}}
@@ -271,60 +275,7 @@ window.addEventListener('error', function(e){
 
 <!-- 小鲸 -->
 <div id="bubble"></div>
-<svg id="pet" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <defs>
-    <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#5cc8ff"/><stop offset="1" stop-color="#2a6bd6"/>
-    </linearGradient>
-    <linearGradient id="headG" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7fd8ff"/><stop offset="1" stop-color="#3f86ea"/>
-    </linearGradient>
-  </defs>
-  <g class="body">
-    <!-- 尾巴 -->
-    <g class="tail">
-      <path d="M32 112c-16 3-23 15-15 24 7 7 18 2 17-8-1-7-2-11-2-16z" fill="#2a6bd6"/>
-      <path d="M22 128c-8-4-15 2-12 8 2 5 9 5 12 0" fill="#3f86ea"/>
-    </g>
-    <!-- 身体 -->
-    <ellipse cx="62" cy="104" rx="36" ry="32" fill="url(#bodyG)"/>
-    <!-- 围裙 -->
-    <path d="M46 94h32l-3 34H49z" fill="#f6f9ff" opacity=".95"/>
-    <path d="M56 94h12v9H56z" fill="#dce8ff"/>
-    <!-- 鳍手 -->
-    <ellipse class="fin-l" cx="28" cy="100" rx="7" ry="11" fill="#3f86ea" transform="rotate(-18 28 100)"/>
-    <ellipse class="fin-r" cx="96" cy="100" rx="7" ry="11" fill="#3f86ea" transform="rotate(18 96 100)"/>
-    <!-- 头 -->
-    <circle cx="62" cy="58" r="32" fill="url(#headG)"/>
-    <!-- 头发 -->
-    <path d="M30 54c0-20 14-34 32-34s32 14 32 34c-6-11-16-17-32-17s-26 6-32 17z" fill="#2f6fd0"/>
-    <path d="M30 54c-4 13-5 23 1 29 2-12 3-21 4-27z" fill="#2f6fd0"/>
-    <path d="M94 54c4 13 5 23-1 29-2-12-3-21-4-27z" fill="#2f6fd0"/>
-    <!-- 女仆头饰 -->
-    <path d="M38 36c7-10 15-14 24-14s17 4 24 14c-9-4-16-6-24-6s-15 2-24 6z" fill="#f6f9ff"/>
-    <!-- 鲸鳍耳 -->
-    <path d="M30 62c-9-3-13 3-10 9 2 5 8 5 12 2z" fill="#5cc8ff"/>
-    <path d="M94 62c9-3 13 3 10 9-2 5-8 5-12 2z" fill="#5cc8ff"/>
-    <!-- 眼睛 -->
-    <g class="eye">
-      <ellipse cx="50" cy="58" rx="7" ry="8" fill="#0b2d55"/>
-      <ellipse cx="74" cy="58" rx="7" ry="8" fill="#0b2d55"/>
-      <circle cx="52.5" cy="55" r="2.6" fill="#eaf6ff"/>
-      <circle cx="76.5" cy="55" r="2.6" fill="#eaf6ff"/>
-    </g>
-    <!-- 腮红 -->
-    <ellipse cx="36" cy="69" rx="6" ry="4" fill="#ff9fb0" opacity=".5"/>
-    <ellipse cx="88" cy="69" rx="6" ry="4" fill="#ff9fb0" opacity=".5"/>
-    <!-- 嘴 -->
-    <ellipse class="mouth" cx="62" cy="74" rx="5" ry="3" fill="#0b2d55"/>
-    <!-- 气泡 -->
-    <g class="bubs" fill="#ffffff" opacity=".55">
-      <circle cx="101" cy="70" r="2.6"/>
-      <circle cx="107" cy="59" r="2"/>
-      <circle cx="96" cy="52" r="1.6"/>
-    </g>
-  </g>
-</svg>
+<div id="pet"><img src="pet.png" alt="小鲸"></div>
 
 <nav>
   <button class="on" data-v="chat">小鲸</button>
