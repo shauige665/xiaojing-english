@@ -93,6 +93,8 @@ window.addEventListener('error', function(e){
   nav button.on{background:#2b3c6d; color:var(--text)}
   .hint{font-size:12px; color:var(--dim); text-align:center; margin-top:10px; line-height:1.6}
 
+  .sel{flex:1; width:100%; padding:10px 12px; border-radius:12px; border:1px solid #33456f;
+       background:#18244a; color:var(--text); font-size:14px; font-family:inherit}
   /* 小鲸 */
   #pet{position:fixed; right:10px; bottom:74px; width:96px; height:96px; z-index:12; cursor:pointer;
        border-radius:50%; overflow:hidden; background:#0d1730; transition:opacity .3s;
@@ -173,6 +175,7 @@ window.addEventListener('error', function(e){
 <main>
   <!-- 单词 -->
   <section class="view" id="v-words">
+    <div class="row" style="margin:0 0 8px"><select id="wBank" class="sel"></select></div>
     <div class="stat"><span id="wcount">掌握 0 / 0</span><span id="wliked">还剩 0 个</span></div>
     <div class="bar"><i id="wbar"></i></div>
     <div class="stat" style="margin-top:6px"><span id="wstreak">连续 0 天</span><span id="wbook">错词 0 个</span></div>
@@ -284,9 +287,10 @@ window.addEventListener('error', function(e){
   <button data-v="dialog">对话</button>
 </nav>
 
+<script src="words-ce6.js"></script>
 <script>
 /* ---------- 数据 ---------- */
-const WORDS = [
+let WORDS = [
   // 心态与学习
   ["curious","好奇的"],["confident","自信的"],["nervous","紧张的"],["patient","有耐心的"],
   ["effort","努力"],["progress","进步"],["habit","习惯"],["practise","练习"],["review","复习"],
@@ -315,6 +319,11 @@ const WORDS = [
   ["take a break","休息一下"],["give up","放弃"],["figure out","弄明白"],["show up","出现;到场"],
   ["put off","推迟"],["turn out","结果是"],["come up with","想出"],["run out of","用完"]
 ];
+
+/* ---------- 词库 ---------- */
+const BANKS = [{ id:'daily', name:'日常 · 工作(' + WORDS.length + ' 词)', words: WORDS }]
+  .concat(window.WORD_BANKS || []);
+function bankById(id){ return BANKS.find(b => b.id === id) || BANKS[0]; }
 
 const SENTENCES = [
   ["I'll get back to you in a minute.","我一分钟后回复你。"],
@@ -406,14 +415,29 @@ function pickVoice(){
 if(TTS){ try{ TTS.onvoiceschanged = pickVoice; }catch(e){} pickVoice(); }
 
 function say(text, rate){
-  if(!TTS){ mascotSay('这个浏览器不会念英文,换 Chrome 或 Safari 试试', 'sad', 3400); return; }
-  try{
-    TTS.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US'; u.rate = rate || 0.95; u.pitch = 1;
-    if(voice) u.voice = voice;
-    TTS.speak(u);
-  }catch(e){ mascotSay('这条念不出来,换个浏览器试试', 'sad', 2800); }
+  if(TTS){
+    try{
+      TTS.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US'; u.rate = rate || 0.95; u.pitch = 1;
+      if(voice) u.voice = voice;
+      TTS.speak(u);
+      return;
+    }catch(e){}
+  }
+  sayAudio(text);
+}
+
+/* 没有朗读接口的浏览器(X 浏览器等)直接放录音:有道词典的发音接口,国内外都能用。
+   type=2 美音,type=1 英音。 */
+let audioEl = null;
+function sayAudio(text, t){
+  const type = (t === undefined ? (store.get('vtype', 2)) : t);
+  const url = 'https://dict.youdao.com/dictvoice?type=' + type + '&audio=' + encodeURIComponent(text);
+  if(!audioEl){ audioEl = new Audio(); audioEl.preload = 'auto'; }
+  audioEl.src = url;
+  const p = audioEl.play();
+  if(p && p.catch) p.catch(()=> mascotSay('网没连上,这句念不出来', 'sad', 2600));
 }
 
 /* ---------- 打卡 ---------- */
@@ -767,10 +791,32 @@ function bindRec(recId, playId){
 bindRec('sRec','sPlay');
 bindRec('dRec','dPlay');
 
+/* ---------- 词库选择 ---------- */
+(function(){
+  const sel = $('wBank');
+  if(!sel) return;
+  BANKS.forEach(b=>{
+    const o = document.createElement('option');
+    o.value = b.id; o.textContent = b.name;
+    sel.appendChild(o);
+  });
+  const startId = store.get('bank', BANKS[0].id);
+  sel.value = bankById(startId).id;
+  WORDS = bankById(startId).words;
+  sel.onchange = ()=>{
+    const b = bankById(sel.value);
+    WORDS = b.words;
+    store.set('bank', b.id);
+    reviewMode = false;
+    buildQueue(); nextWord(); refreshStats();
+    mascotSay('换到「' + b.name.replace(/\(.*/, '').trim() + '」了', null, 2200);
+  };
+})();
+
 /* ---------- 启动 ---------- */
 try{
   buildQueue(); nextWord(); showSentence(); showDialog(); renderMsgs();
-  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v4';
+  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v5';
   setTimeout(()=> mascotSay('我是小鲸,陪你练英语。点我一下也行。', null, 3600), 600);
   setTimeout(()=>{
     if($('wEn').textContent.trim() === '—'){
