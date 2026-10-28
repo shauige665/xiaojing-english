@@ -95,37 +95,23 @@ window.addEventListener('error', function(e){
 
   .sel{flex:1; width:100%; padding:10px 12px; border-radius:12px; border:1px solid #33456f;
        background:#18244a; color:var(--text); font-size:14px; font-family:inherit}
-  /* 小鲸 */
-  #pet{position:fixed; right:10px; bottom:74px; width:96px; height:96px; z-index:12; cursor:pointer;
-       border-radius:50%; overflow:hidden; background:#0d1730; transition:opacity .3s;
-       box-shadow:0 8px 18px rgba(0,0,0,.45), 0 0 0 2px rgba(120,190,255,.5);
-       animation:float 3.8s ease-in-out infinite}
-  #pet img{width:100%; height:100%; object-fit:cover; object-position:50% 6%; display:block}
+  /* 小鲸:整只站在这儿,不是圆头像 */
+  #pet{position:fixed; right:6px; bottom:64px; width:104px; z-index:12; cursor:pointer;
+       transition:opacity .3s; animation:float 4.2s ease-in-out infinite;
+       filter:drop-shadow(0 6px 10px rgba(0,0,0,.5))}
+  #pet img{width:100%; height:auto; display:block; transform-origin:50% 100%;
+           animation:breathe 3.4s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+  #pet.talking img{animation:talkbob .5s ease-in-out infinite}
+  @keyframes talkbob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.04)}}
   #pet.happy{animation:hop .5s ease 2}
   #pet.sad{animation:none; filter:grayscale(.45)}
-  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-  #pet .tail{transform-origin:34px 110px; animation:wag 2.6s ease-in-out infinite}
-  @keyframes wag{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(9deg)}}
-  #pet .eye{transform-origin:62px 58px; animation:blink 5.2s infinite}
-  @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
-  #pet .fin-l{transform-origin:28px 100px; animation:finwave 3.2s ease-in-out infinite}
-  #pet .fin-r{transform-origin:96px 100px; animation:finwave 3.2s ease-in-out infinite reverse}
-  @keyframes finwave{0%,100%{transform:rotate(0)}50%{transform:rotate(-9deg)}}
-  #pet .mouth{transform-origin:62px 74px}
-  #pet.talking .mouth{animation:talk .26s steps(2,end) infinite}
-  @keyframes talk{0%{transform:scaleY(1)}100%{transform:scaleY(2.6)}}
-  #pet .bubs circle{animation:rise 3s ease-in infinite}
-  #pet .bubs circle:nth-child(2){animation-delay:.9s}
-  #pet .bubs circle:nth-child(3){animation-delay:1.9s}
-  @keyframes rise{0%{transform:translateY(0); opacity:.7}100%{transform:translateY(-16px); opacity:0}}
-  #pet.happy .body{animation:hop .5s ease 2}
-  @keyframes hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-15px)}}
-  #pet.sad .body{animation:none; transform:translateY(5px)}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   #pet.swim{animation:lap 3.4s ease-in-out}
   @keyframes lap{
     0%{transform:translate(0,0)}
-    25%{transform:translate(-26vw,-42px) rotate(-10deg)}
-    55%{transform:translate(-52vw,-10px) rotate(8deg)}
+    25%{transform:translate(-26vw,-42px) rotate(-8deg)}
+    55%{transform:translate(-52vw,-10px) rotate(6deg)}
     100%{transform:translate(0,0) rotate(0)}
   }
   #bubble{
@@ -289,7 +275,7 @@ window.addEventListener('error', function(e){
 
 <!-- 小鲸 -->
 <div id="bubble"></div>
-<div id="pet"><img src="pet.png" alt="小鲸"></div>
+<div id="pet"><img src="pet-body.png" alt="小鲸"></div>
 
 <nav>
   <button class="on" data-v="chat">小鲸</button>
@@ -888,7 +874,7 @@ bindRec('dRec','dPlay');
 /* ---------- 启动 ---------- */
 try{
   buildQueue(); nextWord(); showSentence(); showDialog(); renderMsgs();
-  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v6';
+  const h1 = document.querySelector('header h1'); if(h1) h1.textContent += ' · v7';
   setTimeout(()=> mascotSay('我是小鲸,陪你练英语。点我一下也行。', null, 3600), 600);
   setTimeout(()=>{
     if($('wEn').textContent.trim() === '—'){
